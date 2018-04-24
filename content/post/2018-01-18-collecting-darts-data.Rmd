@@ -1,0 +1,103 @@
+---
+title: Collecting Darts Data
+author: Blake Seers
+date: '2018-01-18'
+categories:
+  - instructive
+tags:
+  - data collection
+summary: Data collection is necessary for any statistical analysis. This post details a simple method that I use to collect the necessary data for this website.
+slug: collecting-darts-data
+thumbnailImagePosition: left
+thumbnailImage: images/data.png
+output:
+  blogdown::html_page:
+    toc: no
+---
+
+Data collection is necessary for any statistical analysis, and an analysis of the darts is no exception. Many of the common statistics like 3-dart averages or doubles percentages only require data on where the dart landed. These raw data are available on the internet, for example on [the dartsdata website](http://live.dartsdata.com/), however, I also like to collect data on where the player *intended* the dart to hit, so we can answer questions related to the accuracy of a player. This is a simple variable to collect (most of the time), and this post details how I collect this variable, along with all the other required data for [The Darter Analyst](https://peaceful-raman-d84426.netlify.com) website.
+
+# The data collection process
+
+Below is an outline of the data collection process.
+
+1. Collect metadata:
+
+    + Date and time of the match
+    + Players
+    + Throw order
+    + PDC rankings before the match
+    + Tournament name
+
+2. Watch the darts match (on TV), and collect the data in real time:
+
+    + Where did the dart hit?
+    + Where was the player aiming to hit?
+    + Leg / Set
+
+3. Tidy up and process the data to create a clean data set:
+
+    + Calculate scores and clean up character strings
+    + Fill in the blanks
+    + Create many more variables
+
+4. Analyse the darts match.
+
+### Collect metadata
+
+The metadata is all the relevant information on the dart match and is useful for analysing game-level data and for creating variables in the final data set. This information will become increasingly more useful for analysing game-level data as more data is collected. This includes information on the date, time, players, PDC ranks, and venues.
+
+### Collect the data in real time
+
+To keep the data collection process as simple and quick as possible, I only collect data on 3 variables; hit, intended, and leg / set. The 'hit' variable indicates where the dart landed, and the 'intended' variable indicates where the dart was *intended to* land. Collecting data on where the dart was intended to land is essential for calculating conditional probabilities and accuracy statistics. For example, with this data we can calculate the probability that a certain player will hit the outer bullseye, when they are actually aiming for the inner bullseye.
+
+To further simplify and speed up this process, I use a coding system so that each of the most commonly hit places on the board can be typed into a spreadsheet quickly and easily (while watching the darts).
+
+![Codes used for collecting data for [The Darter Analyst](https://peaceful-raman-d84426.netlify.com).](/images/board_codes.png)
+
+Each of the hit and intended columns contain character strings representing a bed on the dart board. For example, the first six darts of the 2018 William Hill Darts Championship were; single 20, treble 20, single 19, single 20, single 20, single 20. All of these darts were intended for the treble 20 bed, except for the third dart that hit the single 19, but was intended for the treble 19. Therefore, these darts would be coded as f, x, n, f, f, f in the 'hit' column, and x, x, y, x, x, x in the 'intended' column.
+
+![Coded data for the first 6 darts of the 2018 William Hill Darts Championship.](/images/out.png)
+
+### Tidy up and process the coded data
+
+All of the analyses and data processing is done in [the free statistical software, **R**](https://www.r-project.org/). I also use the freely-available [JAGS](http://mcmc-jags.sourceforge.net/) software for fitting the Bayesian models. I have written an **R** package (not for distribution) that automatically tidies up the data and creates all the extra variables required for all the analyses on this website. Some of the variables that are included in the final, clean dataset are shown in the table below.
+
+```{r, results = "asis", echo = FALSE, message = FALSE, warning = FALSE}
+if (!require(knitr)){
+  install.packages("knitr")
+  library(knitr)
+}
+
+if (!require(kableExtra)){
+  install.packages("kableExtra")
+  library(kableExtra)
+}
+
+data.frame(Variable = c("Dart hit", "Dart score", "Dart intended", "Hit intended", "Aim double", "Aim triple", "Throw", "Thrower", "Leg", "Game dart", "Tournament", "Date"),
+           Type = c("character", "numeric", "character", "logical", "logical", "logical", "numeric", "character", "numeric", "numeric", "character", "Date"),
+           Example = c('"D7"', 14, '"D7"', TRUE, TRUE, FALSE, 7, '"Steve Beaton"', 1, 40, '"World Championships"', "2017-12-14")) %>%
+  kable("html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), 
+                full_width = FALSE)
+```
+
+All of these variables (and more) are either calculated from the 3 columns 'hit', 'intended' and 'leg', or simply copied from the metadata, which is clearly a very simple and efficient method for collecting (most of) the data I need for this website.
+
+# Limitations
+
+Unfortunately, there are limitations to this approach of data collection:
+
+1. Data accuracy
+
+    I do make mistakes when coding the data in real time, although I minimise this by double checking what I have collected using online data. There are also checks in the **R** package to minimise transcription errors.
+
+2. Determining the bed in which the player intended the dart to land
+
+    This limitation ties in with the data accuracy limitation mentioned above. Most of the time it is really easy to determine where the player intended their dart to land. Regardless, some complications do arise. 
+    
+    For example, in round 1 of the 2018 World Championships, Michael Van Germen was on 85 at the start of his fourth throw in the second leg of set 3. He threw his first dart and it hit the outer bull, but he was actually aiming for either the inner or outer bull area to guarantee himself a 2-dart finish, if he hit either one. To account for this fairly common situation I have a code "io", which means that the player was aiming for any bed in the bull area. Sometimes, the situations are much more ambiguous than this.
+
+3. Lack of valuable data
+
+    To put it simply, we can answer more questions with more data. A limitation of this data collection method is that we can't (yet?) answer questions about some really interesting questions, such as; any question relating to the speed of a player's throw. I have always found it interesting to try and see how the speed (or lack thereof) of a player's throw affects their opponent. Also, if we could collect data on the time that each dart was thrown we could investigate how/if a player was put off by a heckler, or their opponent's dropped dart. Also, if we collected data on the noise of the audience at the time each dart was released we could begin to investigate how the players react to the audience. The list goes on.

@@ -1,0 +1,232 @@
+---
+title: Collecting Darts Data
+author: Blake Seers
+date: '2018-01-18'
+categories:
+  - instructive
+tags:
+  - data collection
+summary: Data collection is necessary for any statistical analysis. This post details a simple method that I use to collect the necessary data for this website.
+slug: collecting-darts-data
+thumbnailImagePosition: left
+thumbnailImage: images/data.png
+output:
+  blogdown::html_page:
+    toc: no
+---
+
+
+
+<p>Data collection is necessary for any statistical analysis, and an analysis of the darts is no exception. Many of the common statistics like 3-dart averages or doubles percentages only require data on where the dart landed. These raw data are available on the internet, for example on <a href="http://live.dartsdata.com/">the dartsdata website</a>, however, I also like to collect data on where the player <em>intended</em> the dart to hit, so we can answer questions related to the accuracy of a player. This is a simple variable to collect (most of the time), and this post details how I collect this variable, along with all the other required data for <a href="https://peaceful-raman-d84426.netlify.com">The Darter Analyst</a> website.</p>
+<div id="the-data-collection-process" class="section level1">
+<h1>The data collection process</h1>
+<p>Below is an outline of the data collection process.</p>
+<ol style="list-style-type: decimal">
+<li><p>Collect metadata:</p>
+<ul>
+<li>Date and time of the match</li>
+<li>Players</li>
+<li>Throw order</li>
+<li>PDC rankings before the match</li>
+<li>Tournament name</li>
+</ul></li>
+<li><p>Watch the darts match (on TV), and collect the data in real time:</p>
+<ul>
+<li>Where did the dart hit?</li>
+<li>Where was the player aiming to hit?</li>
+<li>Leg / Set</li>
+</ul></li>
+<li><p>Tidy up and process the data to create a clean data set:</p>
+<ul>
+<li>Calculate scores and clean up character strings</li>
+<li>Fill in the blanks</li>
+<li>Create many more variables</li>
+</ul></li>
+<li><p>Analyse the darts match.</p></li>
+</ol>
+<div id="collect-metadata" class="section level3">
+<h3>Collect metadata</h3>
+<p>The metadata is all the relevant information on the dart match and is useful for analysing game-level data and for creating variables in the final data set. This information will become increasingly more useful for analysing game-level data as more data is collected. This includes information on the date, time, players, PDC ranks, and venues.</p>
+</div>
+<div id="collect-the-data-in-real-time" class="section level3">
+<h3>Collect the data in real time</h3>
+<p>To keep the data collection process as simple and quick as possible, I only collect data on 3 variables; hit, intended, and leg / set. The ‘hit’ variable indicates where the dart landed, and the ‘intended’ variable indicates where the dart was <em>intended to</em> land. Collecting data on where the dart was intended to land is essential for calculating conditional probabilities and accuracy statistics. For example, with this data we can calculate the probability that a certain player will hit the outer bullseye, when they are actually aiming for the inner bullseye.</p>
+<p>To further simplify and speed up this process, I use a coding system so that each of the most commonly hit places on the board can be typed into a spreadsheet quickly and easily (while watching the darts).</p>
+<div class="figure">
+<img src="/images/board_codes.png" alt="Codes used for collecting data for The Darter Analyst." />
+<p class="caption">Codes used for collecting data for <a href="https://peaceful-raman-d84426.netlify.com">The Darter Analyst</a>.</p>
+</div>
+<p>Each of the hit and intended columns contain character strings representing a bed on the dart board. For example, the first six darts of the 2018 William Hill Darts Championship were; single 20, treble 20, single 19, single 20, single 20, single 20. All of these darts were intended for the treble 20 bed, except for the third dart that hit the single 19, but was intended for the treble 19. Therefore, these darts would be coded as f, x, n, f, f, f in the ‘hit’ column, and x, x, y, x, x, x in the ‘intended’ column.</p>
+<div class="figure">
+<img src="/images/out.png" alt="Coded data for the first 6 darts of the 2018 William Hill Darts Championship." />
+<p class="caption">Coded data for the first 6 darts of the 2018 William Hill Darts Championship.</p>
+</div>
+</div>
+<div id="tidy-up-and-process-the-coded-data" class="section level3">
+<h3>Tidy up and process the coded data</h3>
+<p>All of the analyses and data processing is done in <a href="https://www.r-project.org/">the free statistical software, <strong>R</strong></a>. I also use the freely-available <a href="http://mcmc-jags.sourceforge.net/">JAGS</a> software for fitting the Bayesian models. I have written an <strong>R</strong> package (not for distribution) that automatically tidies up the data and creates all the extra variables required for all the analyses on this website. Some of the variables that are included in the final, clean dataset are shown in the table below.</p>
+<table class="table table-striped table-hover" style="width: auto !important; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:left;">
+Variable
+</th>
+<th style="text-align:left;">
+Type
+</th>
+<th style="text-align:left;">
+Example
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+Dart hit
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+“D7”
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Dart score
+</td>
+<td style="text-align:left;">
+numeric
+</td>
+<td style="text-align:left;">
+14
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Dart intended
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+“D7”
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Hit intended
+</td>
+<td style="text-align:left;">
+logical
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Aim double
+</td>
+<td style="text-align:left;">
+logical
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Aim triple
+</td>
+<td style="text-align:left;">
+logical
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Throw
+</td>
+<td style="text-align:left;">
+numeric
+</td>
+<td style="text-align:left;">
+7
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Thrower
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+“Steve Beaton”
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Leg
+</td>
+<td style="text-align:left;">
+numeric
+</td>
+<td style="text-align:left;">
+1
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Game dart
+</td>
+<td style="text-align:left;">
+numeric
+</td>
+<td style="text-align:left;">
+40
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Tournament
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+“World Championships”
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Date
+</td>
+<td style="text-align:left;">
+Date
+</td>
+<td style="text-align:left;">
+2017-12-14
+</td>
+</tr>
+</tbody>
+</table>
+<p>All of these variables (and more) are either calculated from the 3 columns ‘hit’, ‘intended’ and ‘leg’, or simply copied from the metadata, which is clearly a very simple and efficient method for collecting (most of) the data I need for this website.</p>
+</div>
+</div>
+<div id="limitations" class="section level1">
+<h1>Limitations</h1>
+<p>Unfortunately, there are limitations to this approach of data collection:</p>
+<ol style="list-style-type: decimal">
+<li><p>Data accuracy</p>
+<p>I do make mistakes when coding the data in real time, although I minimise this by double checking what I have collected using online data. There are also checks in the <strong>R</strong> package to minimise transcription errors.</p></li>
+<li><p>Determining the bed in which the player intended the dart to land</p>
+<p>This limitation ties in with the data accuracy limitation mentioned above. Most of the time it is really easy to determine where the player intended their dart to land. Regardless, some complications do arise.</p>
+<p>For example, in round 1 of the 2018 World Championships, Michael Van Germen was on 85 at the start of his fourth throw in the second leg of set 3. He threw his first dart and it hit the outer bull, but he was actually aiming for either the inner or outer bull area to guarantee himself a 2-dart finish, if he hit either one. To account for this fairly common situation I have a code “io”, which means that the player was aiming for any bed in the bull area. Sometimes, the situations are much more ambiguous than this.</p></li>
+<li><p>Lack of valuable data</p>
+<p>To put it simply, we can answer more questions with more data. A limitation of this data collection method is that we can’t (yet?) answer questions about some really interesting questions, such as; any question relating to the speed of a player’s throw. I have always found it interesting to try and see how the speed (or lack thereof) of a player’s throw affects their opponent. Also, if we could collect data on the time that each dart was thrown we could investigate how/if a player was put off by a heckler, or their opponent’s dropped dart. Also, if we collected data on the noise of the audience at the time each dart was released we could begin to investigate how the players react to the audience. The list goes on.</p></li>
+</ol>
+</div>
