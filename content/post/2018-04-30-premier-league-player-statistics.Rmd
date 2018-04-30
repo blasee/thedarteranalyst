@@ -1,0 +1,143 @@
+---
+title: Premier League Player Statistics
+author: Blake Seers
+date: '2018-04-30'
+slug: premier-league-player-statistics
+categories:
+  - Premier League
+tags:
+  - "2018"
+  - summary
+summary: Michael van Gerwen has the highest probability of hitting the treble he is aiming for. He has a probability around 0.47, which is statistically higher than all the other players, except for Gary Anderson's, whose treble probability is around 0.44. Rob Cross has the highest double percentage, and Raymond van Barneveld has the highest bullseye accuracy.
+thumbnailImagePosition: "top"
+thumbnailImage: post/2018-04-30-premier-league-player-statistics_files/figure-html/thumbnail-1.png
+metaAlignment: center
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(knitr)
+library(kableExtra)
+source("../../data/Premier League 2018/read_data.R")
+```
+
+# Summary statistics
+
+```{r, results = "asis"}
+dart.df %>% 
+  group_by(thrower) %>% 
+  summarise(triple_hit = sum(aim_triple & hit_intended),
+            triple_aimed = sum(aim_triple),
+            double_hit = sum(aim_double & hit_intended),
+            double_aimed = sum(aim_double),
+            single_hit = sum(aim_single & hit_intended),
+            single_aimed = sum(aim_single),
+            bullseye_hit = sum((aim_io | aim_inner | aim_outer) & hit_intended),
+            bullseye_aimed = sum(aim_io | aim_inner | aim_outer),
+            bo = sum(bounce_out),
+            bust = sum(busted_dart),
+            waste = sum(wasted_dart),
+            darts = n()) %>% 
+  mutate(triples = paste0(triple_hit, "/", format(triple_aimed, big.mark = ",")),
+         t_pct = round(triple_hit / triple_aimed * 100),
+         doubles = paste0(double_hit, "/", format(double_aimed, big.mark = ",")),
+         d_pct = round(double_hit / double_aimed * 100),
+         singles = paste0(single_hit, "/", format(single_aimed, big.mark = ",")),
+         s_pct = round(single_hit / single_aimed * 100),
+         bullseye = paste0(bullseye_hit, "/", format(bullseye_aimed, big.mark = ",")),
+         b_pct = round(bullseye_hit / bullseye_aimed * 100)) %>% 
+  mutate(triple = paste0(t_pct, "% (", triples, ")"),
+         double = paste0(d_pct, "% (", doubles, ")"),
+         single = paste0(s_pct, "% (", singles, ")"),
+         be = paste0(b_pct, "% (", bullseye, ")")) %>% 
+  arrange(desc(t_pct), desc(d_pct)) %>% 
+  select(thrower, triple:be, bo:waste, darts) %>% 
+  kable(format = "html", format.args = list(big.mark = ','),
+        col.names = c("Thrower", "Triples", "Doubles", "Singles", "Bullseye", "Bounce-outs", "Busted darts", "Wasted darts", "Darts thrown"),
+        caption = "Summary table showing the triple, double, single and bullseye percentages for each player throughout the entire premier league. The table also shows the number of bounce-outs, busted darts, wasted darts and total number of darts thrown in the premier league.",
+        align = "c") %>% 
+  kable_styling(c("striped", "hover"))
+```
+
+# Treble accuracy
+
+```{r thumbnail, fig.width = 7.5, fig.height = 2.5, out.width = 7.5, out.height = 2.5, dpi = 50, include = FALSE}
+dart_summary.df = dart.df %>% 
+  group_by(thrower) %>% 
+  summarise(triple_hit = sum(aim_triple & hit_intended),
+            triple_aimed = sum(aim_triple),
+            double_hit = sum(aim_double & hit_intended),
+            double_aimed = sum(aim_double),
+            single_hit = sum(aim_single & hit_intended),
+            single_aimed = sum(aim_single),
+            bullseye_hit = sum((aim_io | aim_inner | aim_outer) & hit_intended),
+            bullseye_aimed = sum(aim_io | aim_inner | aim_outer)) %>% 
+  mutate(triple_pct = triple_hit / triple_aimed,
+         double_pct = double_hit / double_aimed,
+         be_pct = bullseye_hit / bullseye_aimed) %>% 
+  rowwise() %>% 
+  mutate(triple_l = prop.test(triple_hit, triple_aimed)$conf.int[1],
+         triple_u = prop.test(triple_hit, triple_aimed)$conf.int[2],
+         double_l = prop.test(double_hit, double_aimed)$conf.int[1],
+         double_u = prop.test(double_hit, double_aimed)$conf.int[2],
+         be_l = prop.test(bullseye_hit, bullseye_aimed)$conf.int[1],
+         be_u = prop.test(bullseye_hit, bullseye_aimed)$conf.int[2])
+
+dart_summary.df %>% 
+  arrange(triple_pct) %>% 
+  mutate(thrower = factor(thrower, levels = unique(thrower))) %>% 
+  ggplot(aes(thrower, triple_pct)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = triple_l, ymax = triple_u), width = .2) +
+  labs(y = "Probability of hitting the treble") +
+  coord_flip() +
+  theme_bw() +
+  theme(text = element_text(size = 16),
+        axis.title.y = element_blank())
+```
+
+```{r, fig.width = 8, fig.cap = "95% confidence intervals for the probability of each player to hit the treble they were aiming for. A player can be considered to have a significantly different probability than another player if their respective confidence intervals do not overlap. For example, Michael van Gerwen's interval ranges from 0.45 to 0.50, whereas Daryl Gurney's interval ranges from 0.38 to 0.43, therefore MVG has a significantly higher probability of hitting a treble than Daryl Gurney."}
+dart_summary.df %>% 
+  arrange(triple_pct) %>% 
+  mutate(thrower = factor(thrower, levels = unique(thrower))) %>% 
+  ggplot(aes(thrower, triple_pct)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = triple_l, ymax = triple_u), width = .2) +
+  labs(y = "Probability of hitting the treble") +
+  coord_flip() +
+  theme_bw() +
+  theme(text = element_text(size = 16),
+        axis.title.y = element_blank())
+```
+
+# Double accuracy
+
+```{r, fig.width = 8, fig.cap = "95% confidence intervals for the probability of each player to hit the double they were aiming for."}
+dart_summary.df %>% 
+  arrange(double_pct) %>% 
+  mutate(thrower = factor(thrower, levels = unique(thrower))) %>% 
+  ggplot(aes(thrower, double_pct)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = double_l, ymax = double_u), width = .2) +
+  labs(y = "Probability of hitting the double") +
+  coord_flip() +
+  theme_bw() +
+  theme(text = element_text(size = 16),
+        axis.title.y = element_blank())
+```
+
+# Bullseye accuracy
+
+```{r, fig.width = 8, fig.cap = "95% confidence intervals for the probability of each player to hit the bullseye (inner or outer) they were aiming for. Note, it is common that a player will aim for either the inner or outer bullseye."}
+dart_summary.df %>% 
+  arrange(be_pct) %>% 
+  mutate(thrower = factor(thrower, levels = unique(thrower))) %>% 
+  ggplot(aes(thrower, be_pct)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = be_l, ymax = be_u), width = .2) +
+  labs(y = "Probability of hitting the bullseye") +
+  coord_flip() +
+  theme_bw() +
+  theme(text = element_text(size = 16),
+        axis.title.y = element_blank())
+```
