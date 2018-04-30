@@ -1,0 +1,396 @@
+---
+title: Premier League Week 12
+author: Blake Seers
+date: "2018-04-27"
+categories:
+  - Premier League
+tags:
+  - "2018"
+  - week 12
+  - auto generated
+slug: premier-league-week-12
+summary: All the stats from week 12 of the premier league! Michael Smith had the highest accuracy of the night with a probability of 0.67 during leg 1 of his battle against Peter Wright.
+thumbnailImagePosition: "top"
+thumbnailImage: post/2018-04-27-premier-league-week-12_files/figure-html/thumbnail-1.png
+metaAlignment: center
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(knitr)
+library(kableExtra)
+
+source("../../data/Premier League 2018/read_data.R")
+source("../../data/Premier League 2018/run_bayes.R")
+
+dart.df = dart.df %>%
+  filter(stage == "Week 12") %>%
+  mutate(thrower = factor(as.character(thrower),
+                          levels = unique(thrower))) %>%
+  arrange(thrower)%>%
+  run_bayes(week = 12)
+
+find_last_score = function(before_throw, after_throw, throw) {
+  before_throw = before_throw[throw == max(throw)]
+  after_throw = after_throw[throw == max(throw)]
+  
+  ifelse(any(after_throw == 0),
+         before_throw[1], tail(after_throw, 1))
+}
+
+ribbon.df = dart.df %>% 
+  arrange(game, game_dart) %>%
+  group_by(game, leg) %>% 
+  summarise(winner = tail(thrower, 1))
+
+label.df = dart.df %>% 
+  arrange(game, game_dart) %>% 
+  group_by(game, leg, thrower) %>% 
+  mutate(final_score = find_last_score(score_before_throw, score_after_throw, 
+                                       leg_throw_per_player)) %>% 
+  summarise(final_score = unique(final_score),
+            median_p = tail(median_p, 1),
+            win = any(score_after_throw == 0)) %>%
+  ungroup() %>% 
+  mutate(throw_first = rep(c(T, F, F, T), length = length(game)),
+         y_cont = rep(c(1.1, 1.9), length = length(game))) %>% 
+  group_by(game, leg) %>% 
+  mutate(stole_throw = win & !throw_first)
+```
+
+# Summary
+
+```{r thumbnail, fig.width = 7.5, fig.height = 2.5, out.width = 7.5, out.height = 2.5, dpi = 50, include = FALSE}
+dart.df %>% 
+  group_by(thrower) %>% 
+  summarise(double_x = sum(hit_intended[aim_double]), 
+            double_n = sum(aim_double),
+            triple_x = sum(hit_intended[aim_triple]), 
+            triple_n = sum(aim_triple)) %>% 
+  mutate(double_p = double_x / double_n,
+         triple_p = triple_x / triple_n) %>% 
+  select(-(double_x:triple_n)) %>% 
+  mutate(thrower = factor(thrower, levels = thrower[order(triple_p)])) %>% 
+  mutate(thrower = factor(thrower, 
+                          labels = sapply(strsplit(levels(thrower), " "), tail, 1))) %>% 
+  gather(aim, p, double_p:triple_p) %>% 
+  mutate(aim = factor(aim, labels = c("Double", "Triple"))) %>% 
+  ungroup() %>% 
+  ggplot(aes(thrower, p, fill = aim)) +
+  geom_hline(aes(yintercept = .5), linetype = 2) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  scale_y_continuous(expand = c(0, 0), labels = scales::percent) +
+  theme_minimal() +
+  theme(axis.title = element_blank(),
+        text = element_text(size = 18),
+        legend.title = element_blank(),
+        axis.text.x = element_text(angle = 25, hjust = 1, vjust = 1),
+        axis.ticks.x = element_line(size = 1))
+```
+
+![Bar plot showing the overall percent of successful throws at doubles and triples, for each player. The players are ranked from lowest (left) to highest (right) along the x-axis according to their success on the triples. A 50% success rate is indicated by the horizontal, dashed, black line.](2018-04-27-premier-league-week-12_files/figure-html/thumbnail-1.png)
+
+```{r, results = "asis"}
+dart.df %>% 
+  group_by(date, thrower) %>% 
+  summarise(game = unique(game),
+            avg = round(mean(hit_score) * 3, 1),
+            avg_accuracy = paste0(format(mean(median_p) * 100, digits = 3), "%"),
+            prop = ) %>% 
+  ungroup() %>% 
+  left_join(label.df %>% 
+              filter(win) %>% 
+              group_by(thrower) %>%
+              filter(final_score == max(final_score)) %>% 
+              ungroup() %>% 
+              select(thrower, final_score) %>% 
+              distinct()) %>%
+  left_join(label.df %>% 
+              group_by(thrower) %>% 
+              summarise(break_throw = sum(stole_throw),
+                        legs_won = sum(win),
+                        checkout_100 = sum(final_score > 100 & win))) %>% 
+  group_by(game) %>% 
+  mutate(score = 
+           sum(avg) + 
+           sum(as.numeric(gsub("%", "", avg_accuracy)))) %>% 
+  mutate(score = round((score - 240) / (410 - 240) * 10, 2)) %>% 
+  ungroup() %>% 
+  arrange(desc(score), desc(avg)) %>% 
+  select(thrower, avg, avg_accuracy, break_throw:checkout_100, final_score, game, -score) %>% 
+  kable("html", 
+        col.names = c("Thrower", "3-dart average", "Average accuracy", "Breaks", 
+                      "Legs", "100+ checkouts", "Highest checkout", "Game"),
+        caption = "Summary table for week 12 of the 2018 Unibet Premier League Darts. The games are ordered from the highest (top) to lowest (bottom) player accuracy and 3-dart average.",
+        align = c("l", rep("c", 7))) %>% 
+  kable_styling(c("striped", "hover"), full_width = FALSE) %>% 
+  column_spec(8, bold = TRUE) %>% 
+  collapse_rows(8)
+```
+
+- **3-dart average**
+    
+    Average score per dart, multiplied by 3.
+
+- **Average accuracy**
+
+    Accuracy is calculated using a Bayesian state-space model for the probability of the player hitting their intended target with the current dart. The average accuracy is simply the average estimated probability over the entire game.
+
+- **Breaks**
+
+    Total number of legs won when the opposition threw first.
+
+- **Legs**
+
+    Total number of legs won.
+
+- **100+ checkout**
+
+    Total number of legs finished with a checkout higher than 100.
+
+- **Highest checkout**
+
+    The highest score that won a leg.
+
+Scroll down for leg-by-leg break-downs of the player accuracies and checkouts.
+
+# Game 1: Peter Wright and Michael Smith
+## Accuracy
+
+```{r line-1, fig.width = 7.5, fig.height = 2.5, out.width = 7.5, out.height = 2.5, dpi = 50, include = FALSE}
+dart.df %>%
+  filter(game == 1) %>%
+  rename(Thrower = thrower) %>%
+  ggplot() +
+  geom_rect(data = subset(ribbon.df, game == 1),
+            ymin = -Inf, ymax = Inf, aes(xmin = leg - 1, xmax = leg,
+                                         fill = winner),
+            alpha = .3) +
+  geom_line(aes(prop_leg, median_p, colour = Thrower),
+            size = .8) +
+  labs(x = "End of leg", y = "Estimated probability",
+       fill = "Winner", linetype = "Thrower") +
+  theme_minimal() +
+  scale_x_continuous(breaks = ribbon.df$leg, expand = c(0.02, 0),
+                     labels = ribbon.df$leg) +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        text = element_text(size = 16),
+        axis.ticks.x = element_line())
+```
+
+![Time-series plot showing the probability of each player to hit their intended target throughout the entire match.](2018-04-27-premier-league-week-12_files/figure-html/line-1-1.png)
+
+## Checkouts
+
+```{r finish-1, fig.width = 8.5, fig.height = 3.5, out.width = 7.5, out.height = 2.5, dpi = 50, include = FALSE}
+label.df %>%
+filter(game == 1) %>%
+ggplot(aes(leg, thrower)) +
+geom_text(aes(label = final_score,
+              fontface = factor(win, labels = c("plain", "bold")),
+              colour = stole_throw), size = 7) +
+geom_line(data = subset(label.df, win & game == 1),
+          aes(group = T, y = y_cont)) +
+scale_x_continuous(breaks = 0:100, expand = c(0.06, 0),
+                   labels = 0:100) +
+labs(x = "Leg", colour = "Stole throw") +
+theme_classic() +
+theme(axis.title.y = element_blank(),
+      text = element_text(size = 16))
+```
+
+![Final score and checkout (bold) for each player and each leg of the match. A stolen throw is indicated by a blue, bold number. The black line connects the legs that were won to highlight any winning streaks.](2018-04-27-premier-league-week-12_files/figure-html/finish-1-1.png)
+
+# Game 2: Daryl Gurney and Michael van Gerwen
+## Accuracy
+
+```{r line-2, fig.width = 7.5, fig.height = 2.5, out.width = 7.5, out.height = 2.5, dpi = 50, include = FALSE}
+dart.df %>%
+  filter(game == 2) %>%
+  rename(Thrower = thrower) %>%
+  ggplot() +
+  geom_rect(data = subset(ribbon.df, game == 2),
+            ymin = -Inf, ymax = Inf, aes(xmin = leg - 1, xmax = leg,
+                                         fill = winner),
+            alpha = .3) +
+  geom_line(aes(prop_leg, median_p, colour = Thrower),
+            size = .8) +
+  labs(x = "End of leg", y = "Estimated probability",
+       fill = "Winner", linetype = "Thrower") +
+  theme_minimal() +
+  scale_x_continuous(breaks = ribbon.df$leg, expand = c(0.02, 0),
+                     labels = ribbon.df$leg) +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        text = element_text(size = 16),
+        axis.ticks.x = element_line())
+```
+
+![Time-series plot showing the probability of each player to hit their intended target throughout the entire match.](2018-04-27-premier-league-week-12_files/figure-html/line-2-1.png)
+
+## Checkouts
+
+```{r finish-2, fig.width = 8.5, fig.height = 3.5, out.width = 7.5, out.height = 2.5, dpi = 50, include = FALSE}
+label.df %>%
+filter(game == 2) %>%
+ggplot(aes(leg, thrower)) +
+geom_text(aes(label = final_score,
+              fontface = factor(win, labels = c("plain", "bold")),
+              colour = stole_throw), size = 7) +
+geom_line(data = subset(label.df, win & game == 2),
+          aes(group = T, y = y_cont)) +
+scale_x_continuous(breaks = 0:100, expand = c(0.06, 0),
+                   labels = 0:100) +
+labs(x = "Leg", colour = "Stole throw") +
+theme_classic() +
+theme(axis.title.y = element_blank(),
+      text = element_text(size = 16))
+```
+
+![Final score and checkout (bold) for each player and each leg of the match. A stolen throw is indicated by a blue, bold number. The black line connects the legs that were won to highlight any winning streaks.](2018-04-27-premier-league-week-12_files/figure-html/finish-2-1.png)
+
+# Game 3: Simon Whitlock and Gary Anderson
+## Accuracy
+
+```{r line-3, fig.width = 7.5, fig.height = 2.5, out.width = 7.5, out.height = 2.5, dpi = 50, include = FALSE}
+dart.df %>%
+  filter(game == 3) %>%
+  rename(Thrower = thrower) %>%
+  ggplot() +
+  geom_rect(data = subset(ribbon.df, game == 3),
+            ymin = -Inf, ymax = Inf, aes(xmin = leg - 1, xmax = leg,
+                                         fill = winner),
+            alpha = .3) +
+  geom_line(aes(prop_leg, median_p, colour = Thrower),
+            size = .8) +
+  labs(x = "End of leg", y = "Estimated probability",
+       fill = "Winner", linetype = "Thrower") +
+  theme_minimal() +
+  scale_x_continuous(breaks = ribbon.df$leg, expand = c(0.02, 0),
+                     labels = ribbon.df$leg) +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        text = element_text(size = 16),
+        axis.ticks.x = element_line())
+```
+
+![Time-series plot showing the probability of each player to hit their intended target throughout the entire match.](2018-04-27-premier-league-week-12_files/figure-html/line-3-1.png)
+
+## Checkouts
+
+```{r finish-3, fig.width = 8.5, fig.height = 3.5, out.width = 7.5, out.height = 2.5, dpi = 50, include = FALSE}
+label.df %>%
+filter(game == 3) %>%
+ggplot(aes(leg, thrower)) +
+geom_text(aes(label = final_score,
+              fontface = factor(win, labels = c("plain", "bold")),
+              colour = stole_throw), size = 7) +
+geom_line(data = subset(label.df, win & game == 3),
+          aes(group = T, y = y_cont)) +
+scale_x_continuous(breaks = 0:100, expand = c(0.06, 0),
+                   labels = 0:100) +
+labs(x = "Leg", colour = "Stole throw") +
+theme_classic() +
+theme(axis.title.y = element_blank(),
+      text = element_text(size = 16))
+```
+
+![Final score and checkout (bold) for each player and each leg of the match. A stolen throw is indicated by a blue, bold number. The black line connects the legs that were won to highlight any winning streaks.](2018-04-27-premier-league-week-12_files/figure-html/finish-3-1.png)
+
+# Game 4: Raymond van Barneveld and Rob Cross
+## Accuracy
+
+```{r line-4, fig.width = 7.5, fig.height = 2.5, out.width = 7.5, out.height = 2.5, dpi = 50, include = FALSE}
+dart.df %>%
+  filter(game == 4) %>%
+  rename(Thrower = thrower) %>%
+  ggplot() +
+  geom_rect(data = subset(ribbon.df, game == 4),
+            ymin = -Inf, ymax = Inf, aes(xmin = leg - 1, xmax = leg,
+                                         fill = winner),
+            alpha = .3) +
+  geom_line(aes(prop_leg, median_p, colour = Thrower),
+            size = .8) +
+  labs(x = "End of leg", y = "Estimated probability",
+       fill = "Winner", linetype = "Thrower") +
+  theme_minimal() +
+  scale_x_continuous(breaks = ribbon.df$leg, expand = c(0.02, 0),
+                     labels = ribbon.df$leg) +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        text = element_text(size = 16),
+        axis.ticks.x = element_line())
+```
+
+![Time-series plot showing the probability of each player to hit their intended target throughout the entire match.](2018-04-27-premier-league-week-12_files/figure-html/line-4-1.png)
+
+## Checkouts
+
+```{r finish-4, fig.width = 8.5, fig.height = 3.5, out.width = 7.5, out.height = 2.5, dpi = 50, include = FALSE}
+label.df %>%
+filter(game == 4) %>%
+ggplot(aes(leg, thrower)) +
+geom_text(aes(label = final_score,
+              fontface = factor(win, labels = c("plain", "bold")),
+              colour = stole_throw), size = 7) +
+geom_line(data = subset(label.df, win & game == 4),
+          aes(group = T, y = y_cont)) +
+scale_x_continuous(breaks = 0:100, expand = c(0.06, 0),
+                   labels = 0:100) +
+labs(x = "Leg", colour = "Stole throw") +
+theme_classic() +
+theme(axis.title.y = element_blank(),
+      text = element_text(size = 16))
+```
+
+![Final score and checkout (bold) for each player and each leg of the match. A stolen throw is indicated by a blue, bold number. The black line connects the legs that were won to highlight any winning streaks.](2018-04-27-premier-league-week-12_files/figure-html/finish-4-1.png)
+
+# Game 5: Michael Smith and Michael van Gerwen
+## Accuracy
+
+```{r line-5, fig.width = 7.5, fig.height = 2.5, out.width = 7.5, out.height = 2.5, dpi = 50, include = FALSE}
+dart.df %>%
+  filter(game == 5) %>%
+  rename(Thrower = thrower) %>%
+  ggplot() +
+  geom_rect(data = subset(ribbon.df, game == 5),
+            ymin = -Inf, ymax = Inf, aes(xmin = leg - 1, xmax = leg,
+                                         fill = winner),
+            alpha = .3) +
+  geom_line(aes(prop_leg, median_p, colour = Thrower),
+            size = .8) +
+  labs(x = "End of leg", y = "Estimated probability",
+       fill = "Winner", linetype = "Thrower") +
+  theme_minimal() +
+  scale_x_continuous(breaks = ribbon.df$leg, expand = c(0.02, 0),
+                     labels = ribbon.df$leg) +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        text = element_text(size = 16),
+        axis.ticks.x = element_line())
+```
+
+![Time-series plot showing the probability of each player to hit their intended target throughout the entire match.](2018-04-27-premier-league-week-12_files/figure-html/line-5-1.png)
+
+## Checkouts
+
+```{r finish-5, fig.width = 8.5, fig.height = 3.5, out.width = 7.5, out.height = 2.5, dpi = 50, include = FALSE}
+label.df %>%
+filter(game == 5) %>%
+ggplot(aes(leg, thrower)) +
+geom_text(aes(label = final_score,
+              fontface = factor(win, labels = c("plain", "bold")),
+              colour = stole_throw), size = 7) +
+geom_line(data = subset(label.df, win & game == 5),
+          aes(group = T, y = y_cont)) +
+scale_x_continuous(breaks = 0:100, expand = c(0.06, 0),
+                   labels = 0:100) +
+labs(x = "Leg", colour = "Stole throw") +
+theme_classic() +
+theme(axis.title.y = element_blank(),
+      text = element_text(size = 16))
+```
+
+![Final score and checkout (bold) for each player and each leg of the match. A stolen throw is indicated by a blue, bold number. The black line connects the legs that were won to highlight any winning streaks.](2018-04-27-premier-league-week-12_files/figure-html/finish-5-1.png)
+
