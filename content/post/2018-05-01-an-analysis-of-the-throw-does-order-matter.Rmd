@@ -1,0 +1,224 @@
+---
+title: 'An analysis of the throw: Does order matter?'
+author: Blake Seers
+date: '2018-05-01'
+slug: an-analysis-of-the-throw-does-order-matter
+categories:
+  - Premier League
+tags:
+  - '2018'
+  - throw order
+summary: Does a player have a higher chance of hitting a treble with their first dart? Are they more likely to hit a double with their last dart? This post contains an analysis of the differences in the 2018 Premier League players' abilities to hit the intended target with the first, second, and third dart.
+thumbnailImagePosition: "top"
+thumbnailImage: post/2018-05-01-an-analysis-of-the-throw-does-order-matter_files/figure-html/thumbnail-1.png
+metaAlignment: center
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(knitr)
+library(kableExtra)
+library(formattable)
+source("../../data/Premier League 2018/read_data.R")
+```
+
+```{r thumbnail, fig.width = 7.5, fig.height = 2.5, out.width = 7.5, out.height = 2.5, dpi = 50, include = FALSE}
+dart.df %>% 
+  mutate(thrower = factor(thrower, levels = unique(thrower)[c(10, 6, 2, 4, 1, 9, 5, 8, 3, 7)])) %>% 
+  group_by(thrower) %>% 
+  summarise(first_aim = sum(aim_triple & throw_dart == 1),
+            first_hit = sum(hit_intended & aim_triple & throw_dart == 1),
+            second_aim = sum(aim_triple & throw_dart == 2),
+            second_hit = sum(hit_intended & aim_triple & throw_dart == 2),
+            third_aim = sum(aim_triple & throw_dart == 3),
+            third_hit = sum(hit_intended & aim_triple & throw_dart == 3)) %>% 
+  rowwise() %>% 
+  mutate(first_prop = first_hit / first_aim,
+         first_l = prop.test(first_hit, first_aim)$conf.int[1],
+         first_u = prop.test(first_hit, first_aim)$conf.int[2],
+         second_prop = second_hit / second_aim,
+         second_l = prop.test(second_hit, second_aim)$conf.int[1],
+         second_u = prop.test(second_hit, second_aim)$conf.int[2],
+         third_prop = third_hit / third_aim,
+         third_l = prop.test(third_hit, third_aim)$conf.int[1],
+         third_u = prop.test(third_hit, third_aim)$conf.int[2]) %>% 
+  select(thrower, first_prop:third_u) %>% 
+  ungroup() %>% 
+  gather(dart, prob, contains("_")) %>% 
+  mutate(dart = rep(c("First", "Second", "Third"), each = 30),
+         var = rep(rep(c("proportion", "lower", "upper"), each = 10), 3)) %>% 
+  spread(var, prob) %>% 
+  ggplot(aes(thrower, proportion, colour = dart)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), 
+                position = position_dodge(width = .3),
+                width = .2, size = 1) +
+  labs(y = "Probability", colour = "Dart") +
+  theme(text = element_text(size = 14),
+        axis.title.x = element_blank(),
+        axis.text.x = element_text(angle = 30, hjust = 1))
+```
+
+The following table shows all the available data from the 2018 Premier League that is relevant for the following analyses.
+
+```{r, results = "asis"}
+dart.df %>% 
+  group_by(thrower) %>% 
+  summarise(first_hit_t = sum(hit_intended & aim_triple & throw_dart == 1),
+            first_hit_d = sum(hit_intended & aim_double & throw_dart == 1),
+            first_hit_b = sum(hit_intended & (aim_outer | aim_inner | aim_io) & throw_dart == 1),
+            first_aim_t = sum(aim_triple & throw_dart == 1),
+            first_aim_d = sum(aim_double & throw_dart == 1),
+            first_aim_b = sum((aim_outer | aim_inner | aim_io) & throw_dart == 1),
+            
+            second_hit_t = sum(hit_intended & aim_triple & throw_dart == 2),
+            second_hit_d = sum(hit_intended & aim_double & throw_dart == 2),
+            second_hit_b = sum(hit_intended & (aim_outer | aim_inner | aim_io) & throw_dart == 2),
+            second_aim_t = sum(aim_triple & throw_dart == 2),
+            second_aim_d = sum(aim_double & throw_dart == 2),
+            second_aim_b = sum((aim_outer | aim_inner | aim_io) & throw_dart == 2),
+            
+            third_hit_t = sum(hit_intended & aim_triple & throw_dart == 3),
+            third_hit_d = sum(hit_intended & aim_double & throw_dart == 3),
+            third_hit_b = sum(hit_intended & (aim_outer | aim_inner | aim_io) & throw_dart == 3),
+            third_aim_t = sum(aim_triple & throw_dart == 3),
+            third_aim_d = sum(aim_double & throw_dart == 3),
+            third_aim_b = sum((aim_outer | aim_inner | aim_io) & throw_dart == 3)) %>% 
+  gather(var, val, contains("first"), contains("second"), contains("third")) %>%
+  mutate(target = factor(rep(rep(c("Treble", "Double", "Bullseye"), each = 10), 6),
+                         levels = c("Treble", "Double", "Bullseye")),
+         var = substr(var, 1, nchar(var) - 2)) %>% 
+  spread(var, val) %>% 
+  arrange(target) %>% 
+  select(1, 4, 3, 6, 5, 8, 7) %>% 
+  kable(format = "html",
+        align = "lrlrlrl",
+        col.names = c("", "Hit", "Attempts", "Hit", "Attempts", "Hit", "Attempts"),
+        caption = "Total number of throws at each target (treble, double and bullseye), for each player in the Premier League 2018.") %>% 
+  kable_styling(c("striped", "hover"), full_width = FALSE) %>% 
+  add_header_above(c(" ", "First dart" = 2, "Second dart" = 2, "Third dart" = 2)) %>% 
+  group_rows("Treble", 1, 10) %>% 
+  group_rows("Double", 11, 20) %>% 
+  group_rows("Bullseye", 21, 30)
+```
+
+# Differences in treble accuracy
+
+```{r, fig.width = 9.5, fig.height = 5, fig.cap = "95% confidence intervals for the binomial proportion for each player to successfully hit a treble with their first, second and third darts."}
+dart.df %>% 
+  mutate(thrower = factor(thrower, levels = unique(thrower)[c(10, 6, 2, 4, 1, 9, 5, 8, 3, 7)])) %>% 
+  group_by(thrower) %>% 
+  summarise(first_aim = sum(aim_triple & throw_dart == 1),
+            first_hit = sum(hit_intended & aim_triple & throw_dart == 1),
+            second_aim = sum(aim_triple & throw_dart == 2),
+            second_hit = sum(hit_intended & aim_triple & throw_dart == 2),
+            third_aim = sum(aim_triple & throw_dart == 3),
+            third_hit = sum(hit_intended & aim_triple & throw_dart == 3)) %>% 
+  rowwise() %>% 
+  mutate(first_prop = first_hit / first_aim,
+         first_l = prop.test(first_hit, first_aim)$conf.int[1],
+         first_u = prop.test(first_hit, first_aim)$conf.int[2],
+         second_prop = second_hit / second_aim,
+         second_l = prop.test(second_hit, second_aim)$conf.int[1],
+         second_u = prop.test(second_hit, second_aim)$conf.int[2],
+         third_prop = third_hit / third_aim,
+         third_l = prop.test(third_hit, third_aim)$conf.int[1],
+         third_u = prop.test(third_hit, third_aim)$conf.int[2]) %>% 
+  select(thrower, first_prop:third_u) %>% 
+  ungroup() %>% 
+  gather(dart, prob, contains("_")) %>% 
+  mutate(dart = rep(c("First", "Second", "Third"), each = 30),
+         var = rep(rep(c("proportion", "lower", "upper"), each = 10), 3)) %>% 
+  spread(var, prob) %>% 
+  ggplot(aes(thrower, proportion, colour = dart)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), 
+                position = position_dodge(width = .5),
+                width = .2, size = 2) +
+  labs(y = "Probability", colour = "Dart") +
+  theme(text = element_text(size = 18),
+        axis.title.x = element_blank(),
+        axis.text.x = element_text(angle = 30, hjust = 1))
+```
+
+Michael Smith appears to have a statistically significant difference in the probability of successfully hitting a treble with his first and second darts (the confidence intervals don't overlap in the figure above indicating a statistical significance). The probability is higher for him to successfully hit a treble with his second dart, than it is for him to successfully hit a treble with his first dart. 
+
+Interestingly, Michael Smith is the only player who shows any sign of a (statistically) significant difference in the probability of successfully hitting a treble with his 3 darts.
+
+# Differences in double accuracy
+
+```{r, fig.width = 9.5, fig.height = 5, fig.cap = "95% confidence intervals for the binomial proportion for each player to successfully hit a double with their first, second and third darts."}
+dart.df %>% 
+  mutate(thrower = factor(thrower, levels = unique(thrower)[c(10, 6, 2, 4, 1, 9, 5, 8, 3, 7)])) %>% 
+  group_by(thrower) %>% 
+  summarise(first_aim = sum(aim_double & throw_dart == 1),
+            first_hit = sum(hit_intended & aim_double & throw_dart == 1),
+            second_aim = sum(aim_double & throw_dart == 2),
+            second_hit = sum(hit_intended & aim_double & throw_dart == 2),
+            third_aim = sum(aim_double & throw_dart == 3),
+            third_hit = sum(hit_intended & aim_double & throw_dart == 3)) %>% 
+  rowwise() %>% 
+  mutate(first_prop = first_hit / first_aim,
+         first_l = prop.test(first_hit, first_aim)$conf.int[1],
+         first_u = prop.test(first_hit, first_aim)$conf.int[2],
+         second_prop = second_hit / second_aim,
+         second_l = prop.test(second_hit, second_aim)$conf.int[1],
+         second_u = prop.test(second_hit, second_aim)$conf.int[2],
+         third_prop = third_hit / third_aim,
+         third_l = prop.test(third_hit, third_aim)$conf.int[1],
+         third_u = prop.test(third_hit, third_aim)$conf.int[2]) %>% 
+  select(thrower, first_prop:third_u) %>% 
+  ungroup() %>% 
+  gather(dart, prob, contains("_")) %>% 
+  mutate(dart = rep(c("First", "Second", "Third"), each = 30),
+         var = rep(rep(c("proportion", "lower", "upper"), each = 10), 3)) %>% 
+  spread(var, prob) %>% 
+  ggplot(aes(thrower, proportion, colour = dart)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), 
+                position = position_dodge(width = .5),
+                width = .2, size = 2) +
+  labs(y = "Probability", colour = "Dart") +
+  theme(text = element_text(size = 18),
+        axis.title.x = element_blank(),
+        axis.text.x = element_text(angle = 30, hjust = 1))
+```
+
+There are no statistically significant differences in the probability of any player to successfully hit the double with their first, second, or third darts. Despite this, it appears that Gary Anderson may have a slightly lower probability of successfully hitting a double with his *last* dart, whereas Michael van Gerwen appears to have a slightly lower probability of successfully hitting the double with his *first* dart.
+
+# Differences in bullseye accuracy
+
+```{r, fig.width = 9.5, fig.height = 5, fig.cap = "95% confidence intervals for the binomial proportion for each player to successfully hit a bullseye with their first, second and third darts."}
+dart.df %>% 
+  mutate(thrower = factor(thrower, levels = unique(thrower)[c(10, 6, 2, 4, 1, 9, 5, 8, 3, 7)])) %>% 
+  group_by(thrower) %>% 
+  summarise(first_aim = sum((aim_io | aim_inner | aim_outer) & throw_dart == 1),
+            first_hit = sum(hit_intended & (aim_io | aim_inner | aim_outer) & throw_dart == 1),
+            second_aim = sum((aim_io | aim_inner | aim_outer) & throw_dart == 2),
+            second_hit = sum(hit_intended & (aim_io | aim_inner | aim_outer) & throw_dart == 2),
+            third_aim = sum((aim_io | aim_inner | aim_outer) & throw_dart == 3),
+            third_hit = sum(hit_intended & (aim_io | aim_inner | aim_outer) & throw_dart == 3)) %>% 
+  rowwise() %>% 
+  mutate(first_prop = first_hit / first_aim,
+         first_l = prop.test(first_hit, first_aim)$conf.int[1],
+         first_u = prop.test(first_hit, first_aim)$conf.int[2],
+         second_prop = second_hit / second_aim,
+         second_l = prop.test(second_hit, second_aim)$conf.int[1],
+         second_u = prop.test(second_hit, second_aim)$conf.int[2],
+         third_prop = third_hit / third_aim,
+         third_l = prop.test(third_hit, third_aim)$conf.int[1],
+         third_u = prop.test(third_hit, third_aim)$conf.int[2]) %>% 
+  select(thrower, first_prop:third_u) %>% 
+  ungroup() %>% 
+  gather(dart, prob, contains("_")) %>% 
+  mutate(dart = rep(c("First", "Second", "Third"), each = 30),
+         var = rep(rep(c("proportion", "lower", "upper"), each = 10), 3)) %>% 
+  spread(var, prob) %>% 
+  ggplot(aes(thrower, proportion, colour = dart)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), 
+                position = position_dodge(width = .5),
+                width = .2, size = 2) +
+  labs(y = "Probability", colour = "Dart") +
+  theme(text = element_text(size = 18),
+        axis.title.x = element_blank(),
+        axis.text.x = element_text(angle = 30, hjust = 1))
+```
+
+There are no statistically significant differences in the probability of any player to successfully hit the bullseye with their first, second, or third darts.
