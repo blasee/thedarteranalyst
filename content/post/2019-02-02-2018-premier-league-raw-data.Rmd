@@ -1,0 +1,25 @@
+---
+title: 2018 Premier League Raw Data
+author: Blake Seers
+date: '2019-02-02'
+slug: 2018-premier-league-raw-data
+categories:
+  - Premier League
+tags:
+  - '2018'
+  - raw data
+summary: All the raw data for every dart of the 2018 premier league in CSV format for you to download and do your own analyses!
+thumbnailImagePosition: top
+thumbnailImage: images/raw_2018_data.png
+output:
+  blogdown::html_page:
+    toc: no
+---
+
+<!--more-->
+
+Download the raw data for every dart of the 2018 premier league in CSV format:
+
+```{r, echo = FALSE}
+xfun::embed_file("../../data/Premier League 2018/premier_league_2018.csv")
+```
